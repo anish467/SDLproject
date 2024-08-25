@@ -132,7 +132,7 @@ uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
 
 if uploaded_file is not None:
     if allowed_file(uploaded_file.name):
-        file_path = os.path.join("uploads", uploaded_file.name)
+        file_path = uploaded_file.name
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
         process_pdf(file_path)
