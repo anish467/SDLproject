@@ -2,8 +2,8 @@ import streamlit as st
 import os
 import re
 #import pdfplumber
-import psycopg2
-import psycopg2.extras
+#import psycopg2
+#import psycopg2.extras
 import pandas as pd
 
 # Streamlit configurations
