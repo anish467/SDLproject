@@ -47,6 +47,7 @@ def process_pdf(file_path):
 
             cur.execute("""TRUNCATE student;""")
             cur.execute("""DROP TABLE IF EXISTS final;""")
+            cur.execute("""DROP TABLE IF EXISTS List""")
 
             for i in range(num_pages):
                 page = pdf.pages[i]
