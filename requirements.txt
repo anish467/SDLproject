@@ -2,5 +2,3 @@ streamlit
 pandas
 psycopg2-binary
 pdfplumber
-os
-re
