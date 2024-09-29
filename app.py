@@ -11,7 +11,7 @@ st.set_page_config(page_title="PDF Processing App", layout="wide")
 
 # Database connection settings
 hostname = 'localhost'
-database = 'SDLproject'
+database = 'sdl2'
 username = 'postgres'
 pwd = 'Air@8888'
 port_id = 5432
@@ -44,6 +44,9 @@ def process_pdf(file_path):
             sem2 = re.compile(r"Second Semester")
             sem3 = re.compile(r"IIIrd Semester")
             sem4 = re.compile(r"IVth Semester")
+            sub2  = re.compile(r",[A-Z][A-Z]\d{5}")
+            sub1  = re.compile(r" [A-Z][A-Z]\d{5}")
+            practical = re.compile(r"P-[A-Z][A-Z]\d{5}")
 
             cur.execute("""TRUNCATE student;""")
             cur.execute("""DROP TABLE IF EXISTS final;""")
@@ -62,25 +65,39 @@ def process_pdf(file_path):
                 for line in text.split('\n'):
                     if goal.search(line):
                         temp = goal.search(line)
-                        comma_count = line.count(',')
-                        insert_statement = f"""INSERT INTO student (roll_no, {sem}) VALUES (%s, %s)"""
-                        variables = (temp.group(), comma_count + 1)
+                        subjects1 = re.findall(sub1,line)
+                        subjects2 = re.findall(sub2,line)
+                        practicals = re.findall(practical,line)
+                        kt_count = line.count(',') +1
+                        if practicals:
+                            answer = "".join(subjects1) + "".join(subjects2) + "," + ",".join(practicals)
+                        else:
+                            answer = "".join(subjects1) + "".join(subjects2)
+                        insert_statement = f"""INSERT INTO student (roll_no, {sem},kt_count) VALUES (%s, %s, %s)"""
+                        variables = (temp.group(), answer,kt_count)
                         cur.execute(insert_statement, variables)
                     if lateral.search(line):
                         temp = lateral.search(line)
-                        comma_count = line.count(',')
-                        insert_statement = f"""INSERT INTO student (roll_no, {sem}) VALUES (%s, %s)"""
-                        variables = (temp.group(), comma_count + 1)
+                        subjects1 = re.findall(sub1,line)
+                        subjects2 = re.findall(sub2,line)
+                        kt_count = line.count(',') +1
+                        if practicals:
+                            answer = "".join(subjects1) + "".join(subjects2) + "," + ",".join(practicals)
+                        else:
+                            answer = "".join(subjects1) + "".join(subjects2)
+                        insert_statement = f"""INSERT INTO student (roll_no, {sem},kt_count) VALUES (%s, %s, %s)"""
+                        variables = (temp.group(), answer,kt_count)
                         cur.execute(insert_statement, variables)
 
         cur.execute("""
             CREATE TABLE final AS (
                 SELECT 
                     roll_no,
-                    SUM(ktsem1) AS ktsem1,
-                    SUM(ktsem2) AS ktsem2,
-                    SUM(ktsem3) AS ktsem3,
-                    SUM(ktsem4) AS ktsem4
+                    STRING_AGG(ktsem1, '') AS ktsem1,
+                    STRING_AGG(ktsem2, '') AS ktsem2,
+                    STRING_AGG(ktsem3, '') AS ktsem3,
+                    STRING_AGG(ktsem4, '') AS ktsem4,
+                    SUM(kt_count) AS kt_count
                 FROM 
                     student
                 GROUP BY 
@@ -95,14 +112,23 @@ def process_pdf(file_path):
         """)
         cur.execute("SELECT * FROM final")
         for record in cur.fetchall():
-            sum = record['ktsem1'] + record['ktsem2'] + record['ktsem3'] + record['ktsem4']
+            kts = record['kt_count']
             vari = str(record['roll_no'])
-            if sum > 5:
+            if kts > 5:
                 update_entry = f"""UPDATE final
                                    SET result = 'SEM BACK' 
                                    WHERE roll_no = %s"""
                 cur.execute(update_entry, (vari,))
-        cur.execute("""CREATE TABLE List AS (SELECT * FROM final ORDER BY roll_no)""")
+        cur.execute("""
+                      CREATE TABLE List AS 
+                    (
+                          SELECT *, 
+                          CONCAT('20', SUBSTRING(roll_no, 7, 2), '-',
+                          RIGHT('0' || (SUBSTRING(roll_no, 7, 2)::INTEGER + 1), 2)) AS Scheme
+                          FROM final 
+                          ORDER BY roll_no
+                    )
+                 """)
         cur.execute("""DROP TABLE final""")
         conn.commit()
 
@@ -125,8 +151,8 @@ def process_pdf(file_path):
             conn.close()
 
 # Streamlit UI
-st.title("PDF Processing Application")
-st.write("Upload a PDF file to process and extract student data.")
+st.title("Cross List Processing Application")
+st.write("Upload a Cross List in PDF format to process and extract student data.")
 
 uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
 
